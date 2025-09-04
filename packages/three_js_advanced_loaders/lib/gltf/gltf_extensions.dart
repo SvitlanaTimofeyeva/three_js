@@ -87,10 +87,10 @@ class GLTFMaterialsAnisotropyExtension extends GLTFExtension {
 
       final extension = materialDef["extensions"][name];
 
-      materialParams['anisotropyStrength'] = extension['anisotropyStrength'] ?? 1.0;
+      materialParams['anisotropyStrength'] = (extension['anisotropyStrength'] as num?)?.toDouble() ?? 1.0;
 
       if (extension['anisotropyRotation'] != null) {
-        materialParams['anisotropyRotation'] = extension['anisotropyRotation'];
+        materialParams['anisotropyRotation'] = (extension['anisotropyRotation'] as num?)?.toDouble();
       }
 
       final colorArray = extension['specularColorFactor'] ?? [1, 1, 1];
