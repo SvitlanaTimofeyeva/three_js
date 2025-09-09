@@ -697,56 +697,52 @@ class GLTFMaterialsVolumeExtension extends GLTFExtension {
     name = extensions["KHR_MATERIALS_VOLUME"]!;
 
     getMaterialType = (materialIndex) {
-      final parser = this.parser;
       final materialDef = parser.json["materials"][materialIndex];
-
       if (materialDef["extensions"] == null ||
-          materialDef["extensions"][name] == null)
-        return null;
-
+          materialDef["extensions"][name] == null) return null;
       return MeshPhysicalMaterial;
     };
 
     extendMaterialParams =
         (int materialIndex, Map<String, dynamic> materialParams) async {
-          final parser = this.parser;
-          final materialDef = parser.json["materials"][materialIndex];
+      final materialDef = parser.json["materials"][materialIndex];
+      if (materialDef["extensions"] == null ||
+          materialDef["extensions"][name] == null) {
+        return null;
+      }
 
-          if (materialDef["extensions"] == null ||
-              materialDef["extensions"][name] == null) {
-            return null;
-          }
+      final extension = materialDef["extensions"][name];
+      List<Future> pending = [];
 
-          List<Future> pending = [];
+      // coerce all to double
+      materialParams['thickness'] =
+          (extension['thicknessFactor'] as num?)?.toDouble() ?? 0.0;
 
-          final extension = materialDef["extensions"][name];
+      if (extension['thicknessTexture'] != null) {
+        pending.add(parser.assignTexture(
+          materialParams,
+          'thicknessMap',
+          extension['thicknessTexture'],
+        ));
+      }
 
-          materialParams['thickness'] = extension['thicknessFactor'] ?? 0;
+      materialParams['attenuationDistance'] =
+          (extension['attenuationDistance'] as num?)?.toDouble() ??
+              double.infinity;
 
-          if (extension['thicknessTexture'] != null) {
-            pending.add(
-              parser.assignTexture(
-                materialParams,
-                'thicknessMap',
-                extension['thicknessTexture'],
-              ),
-            );
-          }
+      final colorArray = (extension['attenuationColor'] as List?) ??
+          [1.0, 1.0, 1.0];
+      materialParams['attenuationColor'] = Color(
+        (colorArray[0] as num).toDouble(),
+        (colorArray[1] as num).toDouble(),
+        (colorArray[2] as num).toDouble(),
+      );
 
-          materialParams['attenuationDistance'] =
-              extension['attenuationDistance'] ?? 0;
-
-          final colorArray = extension['attenuationColor'] ?? [1, 1, 1];
-          materialParams['attenuationColor'] = Color(
-            colorArray[0],
-            colorArray[1],
-            colorArray[2],
-          );
-
-          return await Future.wait(pending);
-        };
+      return await Future.wait(pending);
+    };
   }
 }
+
 
 ///
 /// BasisU Texture Extension
