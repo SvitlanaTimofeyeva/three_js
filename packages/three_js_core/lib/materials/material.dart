@@ -8,7 +8,7 @@ import '../textures/index.dart';
 
 int materialId = 0;
 
-enum MaterialProperty{
+enum MaterialProperty {
   attributes,
   alphaTest,
   bumpScale,
@@ -84,11 +84,11 @@ enum MaterialProperty{
   shadowSide,
   specular;
 
-  static MaterialProperty? getFromName(String name){
-    for(int i = 0; i < values.length;i++){
-      if(values[i].name == name){
+  static MaterialProperty? getFromName(String name) {
+    for (int i = 0; i < values.length; i++) {
+      if (values[i].name == name) {
         return values[i];
-      } 
+      }
     }
 
     return null;
@@ -265,7 +265,8 @@ class Material with EventDispatcher {
 
   Texture? normalMap;
   Texture? bumpMap;
-  Texture? get envMap =>(uniforms["envMap"] == null ? null : uniforms["envMap"]["value"]);
+  Texture? get envMap =>
+      (uniforms["envMap"] == null ? null : uniforms["envMap"]["value"]);
   set envMap(value) {
     uniforms["envMap"] = {"value": value};
   }
@@ -322,27 +323,27 @@ class Material with EventDispatcher {
   /// An optional callback that is executed immediately before the shader
   /// program is compiled. This function is called with the shader source code
   /// as a parameter. Useful for the modification of built-in materials.
-  /// 
-  /// Unlike properties, the callback is not supported by [clone], 
+  ///
+  /// Unlike properties, the callback is not supported by [clone],
   /// [copy] and [toJson].
   Function? onBeforeCompile;
 
   /// In case onBeforeCompile is used, this callback can be used to identify
   /// values of settings used in onBeforeCompile, so three.js can reuse a cached
   /// shader or recompile the shader for this material as needed.
-  /// 
+  ///
   /// ```
   /// if(black){
   ///   shader.fragmentShader = shader.fragmentShader.replace('gl_FragColor = vec4(1)', 'gl_FragColor = vec4(0)');
   /// }
   /// ```
   /// ```
-  /// material.customProgramCacheKey(){ 
+  /// material.customProgramCacheKey(){
   ///   return black ? '1' : '0';
   /// }
   /// ```
-  /// 
-  /// Unlike properties, the callback is not supported by [clone], 
+  ///
+  /// Unlike properties, the callback is not supported by [clone],
   /// [copy] and [toJson].
   late Function customProgramCacheKey;
 
@@ -388,7 +389,7 @@ class Material with EventDispatcher {
   }
 
   /// [values] - a container with parameters.
-  /// 
+  ///
   /// Sets the properties based on the `values`.
   void setValues(Map<MaterialProperty, dynamic>? values) {
     if (values == null) return;
@@ -406,14 +407,14 @@ class Material with EventDispatcher {
   }
 
   /// [type] - the parameter to change.
-  /// 
+  ///
   /// Sets the properties based on the `values`.
   void setValue(MaterialProperty type, dynamic newValue) {
     setValueFromString(type.name, newValue);
   }
 
   /// [key] - String values of the parameter to change.
-  /// 
+  ///
   /// Sets the properties based on the `values`.
   void setValueFromString(String key, dynamic newValue) {
     if (key == "alphaTest") {
@@ -486,7 +487,7 @@ class Material with EventDispatcher {
       fog = newValue;
     } else if (key == "fragmentShader") {
       fragmentShader = newValue;
-    }else if (key == "specularMap") {
+    } else if (key == "specularMap") {
       specularMap = newValue;
     } else if (key == "instanced") {
       instanced = newValue;
@@ -526,18 +527,16 @@ class Material with EventDispatcher {
       reflectivity = newValue.toDouble();
     } else if (key == "roughness") {
       roughness = newValue.toDouble();
-    }else if (key == "refractionRatio") {
+    } else if (key == "refractionRatio") {
       refractionRatio = newValue.toDouble();
-    }else if (key == "roughnessMap") {
+    } else if (key == "roughnessMap") {
       roughnessMap = newValue;
-    } 
-    else if(key == 'specularColorMap'){
+    } else if (key == 'specularColorMap') {
       specularColorMap = newValue;
-    }else if (key == "shading") {
+    } else if (key == "shading") {
       //   // for backward compatability if shading is set in the constructor
       throw ('THREE.$type: .shading has been removed. Use the boolean .flatShading instead.');
       //   this.flatShading = ( newValue == FlatShading ) ? true : false;
-
     } else if (key == "shininess") {
       shininess = newValue.toDouble();
     } else if (key == "side") {
@@ -582,77 +581,62 @@ class Material with EventDispatcher {
       wireframeLinewidth = newValue.toDouble();
     } else if (key == "shadowSide") {
       shadowSide = newValue;
-    }
-    else if(key == "aoMapIntensity" ){
-      aoMapIntensity = newValue*1.0;
-    }
-    else if(key == "bumpMap"){
+    } else if (key == "aoMapIntensity") {
+      aoMapIntensity = newValue * 1.0;
+    } else if (key == "bumpMap") {
       bumpMap = newValue;
-    }
-    else if (key == "envMap") {
+    } else if (key == "envMap") {
       envMap = newValue;
-    }
-    else if (key == "envMapIntensity") {
+    } else if (key == "envMapIntensity") {
       envMapIntensity = newValue.toDouble();
-    }
-    else if (key == "transmission") {
+    } else if (key == "transmission") {
       transmission = newValue.toDouble();
-    }
-    else if (key == "thickness") {
+    } else if (key == "thickness") {
       thickness = newValue;
-    }
-    else if (key == "attenuationDistance") {
+    } else if (key == "attenuationDistance") {
       attenuationDistance = newValue;
-    }
-    else if (key == "ior") {
-      ior = newValue;
-    }
-    else if(key == 'thicknessMap'){
+    } else if (key == "ior") {
+      ior = (newValue as num).toDouble();
+    } else if (key == 'thicknessMap') {
       thicknessMap = newValue;
-    }
-    else if(key == 'specularIntensity'){
-      specularIntensity = newValue;
-    }
-    else if(key == 'attenuationColor'){
+    } else if (key == 'specularIntensity') {
+      specularIntensity = (newValue as num).toDouble();
+    } else if (key == 'attenuationColor') {
       if (newValue is Color) {
         attenuationColor = newValue;
       } else {
         attenuationColor = Color.fromHex32(newValue);
       }
-    }
-    else if(key == 'specularColor'){
+    } else if (key == 'specularColor') {
       if (newValue is Color) {
         specularColor = newValue;
       } else {
         specularColor = Color.fromHex32(newValue);
       }
-    }
-    else if (key == "specular") {
+    } else if (key == "specular") {
       if (newValue is Color) {
         specular = newValue;
       } else {
         specular = Color.fromHex32(newValue);
       }
-    } else if(key == 'glslVersion'){
+    } else if (key == 'glslVersion') {
       glslVersion = newValue;
-    }
-    else if(key == ''){
-
-    }
-    else if (key == 'displacementScale') {
+    } else if (key == '') {
+    } else if (key == 'displacementScale') {
       displacementScale = newValue.toDouble();
-    }
-    else if (key == 'emissiveIntensity') {
+    } else if (key == 'emissiveIntensity') {
       emissiveIntensity = newValue.toDouble();
-    }
-    else {
-      console.error("Material.setValues key: $key newValue: $newValue is not support");
+    } else {
+      print("unsupported key ${key} value ${newValue}");
+      // console.error(
+      //   "Material.setValues key: $key newValue: $newValue is not support",
+      // );
     }
   }
 
   /// meta -- object containing metadata such as textures or images for the
   /// material.
-  /// 
+  ///
   /// Convert the material to three.js
   /// [JSON Object/Scene format](https://github.com/mrdoob/three.js/wiki/JSON-Object-Scene-format-4).
   Map<String, dynamic> toJson({Object3dMeta? meta}) {
@@ -666,8 +650,8 @@ class Material with EventDispatcher {
       "metadata": {
         "version": 4.5,
         "type": 'Material',
-        "generator": 'Material.toJson'
-      }
+        "generator": 'Material.toJson',
+      },
     };
 
     // standard Material serialization
@@ -713,8 +697,9 @@ class Material with EventDispatcher {
     }
 
     if (clearcoatRoughnessMap != null && clearcoatRoughnessMap is Texture) {
-      data["clearcoatRoughnessMap"] =
-          clearcoatRoughnessMap!.toJson(meta)['uuid'];
+      data["clearcoatRoughnessMap"] = clearcoatRoughnessMap!.toJson(
+        meta,
+      )['uuid'];
     }
 
     if (clearcoatNormalMap != null && clearcoatNormalMap is Texture) {
@@ -866,7 +851,7 @@ class Material with EventDispatcher {
     if (premultipliedAlpha == true) {
       data["premultipliedAlpha"] = premultipliedAlpha;
     }
-    if(forceSinglePass == true){
+    if (forceSinglePass == true) {
       data['forceSinglePass'] = forceSinglePass;
     }
 
@@ -993,7 +978,7 @@ class Material with EventDispatcher {
 
   /// Frees the GPU-related resources allocated by this instance. Call this
   /// method whenever this instance is no longer used in your app.
-  /// 
+  ///
   /// Material textures must be be disposed of by the dispose() method of
   /// [Texture].
   void dispose() {
@@ -1028,7 +1013,7 @@ class Material with EventDispatcher {
   Object? getProperty(String key) {
     if (key == "alphaTest") {
       return alphaTest;
-    }else if (key == "bumpScale") {
+    } else if (key == "bumpScale") {
       return bumpScale;
     } else if (key == "alphaMap") {
       return alphaMap;
@@ -1088,7 +1073,7 @@ class Material with EventDispatcher {
       return fog;
     } else if (key == "fragmentShader") {
       return fragmentShader;
-    }else if (key == "specularMap") {
+    } else if (key == "specularMap") {
       return specularMap;
     } else if (key == "instanced") {
       return instanced;
@@ -1128,13 +1113,13 @@ class Material with EventDispatcher {
       return reflectivity;
     } else if (key == "roughness") {
       return roughness;
-    }else if (key == "refractionRatio") {
+    } else if (key == "refractionRatio") {
       return refractionRatio;
-    }else if (key == "roughnessMap") {
+    } else if (key == "roughnessMap") {
       return roughnessMap;
-    } else if(key == 'specularColorMap'){
+    } else if (key == 'specularColorMap') {
       return specularColorMap;
-    }else if (key == "shininess") {
+    } else if (key == "shininess") {
       return shininess;
     } else if (key == "side") {
       return side;
@@ -1178,44 +1163,46 @@ class Material with EventDispatcher {
       return wireframeLinewidth;
     } else if (key == "shadowSide") {
       return shadowSide;
-    }else if(key == "aoMapIntensity" ){
+    } else if (key == "aoMapIntensity") {
       return aoMapIntensity;
-    }else if(key == "bumpMap"){
+    } else if (key == "bumpMap") {
       return bumpMap;
-    }else if (key == "envMap") {
+    } else if (key == "envMap") {
       return envMap;
-    }else if (key == "envMapIntensity") {
+    } else if (key == "envMapIntensity") {
       return envMapIntensity;
-    }else if (key == "transmission") {
+    } else if (key == "transmission") {
       return transmission;
-    }else if (key == "thickness") {
+    } else if (key == "thickness") {
       return thickness;
-    }else if (key == "attenuationDistance") {
+    } else if (key == "attenuationDistance") {
       return attenuationDistance;
-    }else if (key == "ior") {
+    } else if (key == "ior") {
       return ior;
-    }else if(key == 'thicknessMap'){
+    } else if (key == 'thicknessMap') {
       return thicknessMap;
-    }else if(key == 'specularIntensity'){
+    } else if (key == 'specularIntensity') {
       return specularIntensity;
-    }else if(key == 'attenuationColor'){
+    } else if (key == 'attenuationColor') {
       return attenuationColor;
-    }else if(key == 'specularColor'){
+    } else if (key == 'specularColor') {
       return specularColor;
-    }else if (key == "specular") {
+    } else if (key == "specular") {
       return specular;
-    } else if(key == 'glslVersion'){
+    } else if (key == 'glslVersion') {
       return glslVersion;
-    }else if (key == 'displacementScale') {
+    } else if (key == 'displacementScale') {
       return displacementScale;
-    }else if (key == 'emissiveIntensity') {
+    } else if (key == 'emissiveIntensity') {
       return emissiveIntensity;
     }
     console.error("Material.setValues key: $key is not support");
     return null;
   }
-  dynamic operator [] (key) => getProperty(key);
-  void operator []=(String key, dynamic value) => setValueFromString(key, value);
+
+  dynamic operator [](key) => getProperty(key);
+  void operator []=(String key, dynamic value) =>
+      setValueFromString(key, value);
   void setProperty(String key, dynamic value) {
     setValueFromString(key, value);
   }
