@@ -2,14 +2,13 @@ part of three_webgl;
 
 class WebGLRenderLists {
   WebGLRenderLists();
-
   WeakMap lists = WeakMap();
 
-  WebGLRenderList get(scene, renderCallDepth) {
-    final listArray = lists.get( scene );
-    dynamic list;
+  WebGLRenderList get(scene, int renderCallDepth) {
+    final listArray = lists.get(scene);
+    WebGLRenderList list;
 
-    if (lists.has(scene) == false) {
+    if (!lists.has(scene)) {
       list = WebGLRenderList();
       lists.add(key: scene, value: [list]);
     } else {
@@ -20,7 +19,6 @@ class WebGLRenderLists {
         list = listArray[renderCallDepth];
       }
     }
-
     return list;
   }
 

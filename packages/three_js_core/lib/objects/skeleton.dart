@@ -9,30 +9,30 @@ final _offsetMatrix = Matrix4.identity();
 
 /// Use an array of [bones] to create a skeleton that can be used by
 /// a [SkinnedMesh].
-/// 
+///
 /// ```
 /// // Create a simple "arm"
-/// 
+///
 /// final bones = [];
-/// 
+///
 /// final shoulder = Bone();
 /// final elbow = Bone();
 /// final hand = Bone();
-/// 
+///
 /// shoulder.add( elbow );
 /// elbow.add( hand );
-/// 
+///
 /// bones.add( shoulder );
 /// bones.add( elbow );
 /// bones.add( hand );
-/// 
+///
 /// shoulder.position.y = -5;
 /// elbow.position.y = 0;
 /// hand.position.y = 5;
-/// 
+///
 /// final armSkeleton = Skeleton( bones );
 /// ```
-/// 
+///
 /// See the [SkinnedMesh] page for an example of usage with standard
 /// [BufferGeometry].
 class Skeleton {
@@ -43,13 +43,13 @@ class Skeleton {
   DataTexture? boneTexture;
   late int boneTextureSize;
   double frame = -1;
-  bool disposed = true;
+  bool disposed = false;
 
   /// [bones] - The array of [bones]. Default is an empty
   /// array.
-  /// 
+  ///
   /// [boneInverses] - (optional) An array of [Matrix4s].
-  ///  
+  ///
   /// Creates a new [name].
   Skeleton([List<Bone>? bones, List<Matrix4>? boneInverses]) {
     this.bones = bones!.sublist(0);
@@ -69,7 +69,9 @@ class Skeleton {
     //       32x32 pixel texture max  256 bones * 4 pixels = (32 * 32)
     //       64x64 pixel texture max 1024 bones * 4 pixels = (64 * 64)
 
-    double getSize = math.sqrt(bones.length * 4); // 4 pixels needed for 1 matrix
+    double getSize = math.sqrt(
+      bones.length * 4,
+    ); // 4 pixels needed for 1 matrix
     getSize = MathUtils.ceilPowerOfTwo(getSize).toDouble();
     getSize = math.max(getSize, 4);
 
@@ -83,12 +85,13 @@ class Skeleton {
 
     if (boneInverses.isEmpty) {
       calculateInverses();
-    } 
-    else {
+    } else {
       // handle special case
 
       if (bones.length != boneInverses.length) {
-        console.warning('Skeleton: Number of inverse bone matrices does not match amount of bones.');
+        console.warning(
+          'Skeleton: Number of inverse bone matrices does not match amount of bones.',
+        );
 
         this.boneInverses = [];
 
@@ -100,7 +103,7 @@ class Skeleton {
   }
 
   /// Generates the [page:.boneInverses boneInverses] array if not provided in
-	/// the constructor.
+  /// the constructor.
   void calculateInverses() {
     boneInverses.length = 0;
     boneInverses.clear();
@@ -108,7 +111,9 @@ class Skeleton {
     for (int i = 0, il = bones.length; i < il; i++) {
       final inverse = Matrix4.identity();
 
-      inverse..setFrom(bones[i].matrixWorld)..invert();
+      inverse
+        ..setFrom(bones[i].matrixWorld)
+        ..invert();
       boneInverses.add(inverse);
     }
   }
@@ -119,7 +124,9 @@ class Skeleton {
 
     for (int i = 0, il = bones.length; i < il; i++) {
       final bone = bones[i];
-      bone.matrixWorld..setFrom(boneInverses[i])..invert();
+      bone.matrixWorld
+        ..setFrom(boneInverses[i])
+        ..invert();
     }
 
     // compute the local matrices, positions, rotations and scales
@@ -127,7 +134,9 @@ class Skeleton {
     for (int i = 0, il = bones.length; i < il; i++) {
       final bone = bones[i];
       if (bone.parent != null && bone.parent is Bone) {
-        bone.matrix..setFrom(bone.parent!.matrixWorld)..invert();
+        bone.matrix
+          ..setFrom(bone.parent!.matrixWorld)
+          ..invert();
         bone.matrix.multiply(bone.matrixWorld);
       } else {
         bone.matrix.setFrom(bone.matrixWorld);
@@ -137,7 +146,7 @@ class Skeleton {
     }
   }
 
-  /// Updates the [boneMatrices] and [boneTexture] 
+  /// Updates the [boneMatrices] and [boneTexture]
   /// after changing the bones. This is called automatically by the
   /// [WebGLRenderer] if the skeleton is used with a [SkinnedMesh].
   void update() {
@@ -171,13 +180,17 @@ class Skeleton {
   /// more efficiently to the shader. The texture is assigned to
   /// [boneTexture].
   Skeleton computeBoneTexture() {
-
-    boneTexture = DataTexture(boneMatrices, boneTextureSize, boneTextureSize,
-        RGBAFormat, FloatType);
+    boneTexture = DataTexture(
+      boneMatrices,
+      boneTextureSize,
+      boneTextureSize,
+      RGBAFormat,
+      FloatType,
+    );
 
     boneTexture!.name = "DataTexture from Skeleton.computeBoneTexture";
     boneTexture!.needsUpdate = true;
-    
+
     // Android Float Texture need NearestFilter
     boneTexture!.magFilter = NearestFilter;
     boneTexture!.minFilter = NearestFilter;
@@ -186,7 +199,7 @@ class Skeleton {
   }
 
   /// [name] - String to match to the Bone's .name property.
-  /// 
+  ///
   /// Searches through the skeleton's bone array and returns the first with a
   /// matching name.
   Bone? getBoneByName(String name) {
@@ -204,20 +217,33 @@ class Skeleton {
   /// Frees the GPU-related resources allocated by this instance. Call this
   /// method whenever this instance is no longer used in your app.
   void dispose() {
-    if(disposed) return;
+    if (disposed) return;
     disposed = true;
+
+    // Log for sanity
+    print(
+      '[Skeleton] dispose: bones=${bones.length}, inverses=${boneInverses.length}, '
+      'hasBoneTexture=${boneTexture != null}, hasBoneMatrices=${boneMatrices != null}',
+    );
+
+    // This matches three.js semantics: free GPU-ish resources only.
     boneTexture?.dispose();
+    boneTexture = null;
+
     boneMatrices?.dispose();
+    boneMatrices = null;
 
-    bones.forEach((bone){
-      bone.dispose();
-    });
-
-    bones.clear();
-    boneInverses.clear();
+    // IMPORTANT:
+    // Do NOT:
+    // - dispose bones here
+    // - clear bones
+    // - clear boneInverses
+    //
+    // Those are owned by the Object3D hierarchy / loader, and
+    // nuking them will break any mesh that still references this skeleton.
   }
 
-  Skeleton fromJson(Map<String,dynamic> json, Map<String,Bone?> bones) {
+  Skeleton fromJson(Map<String, dynamic> json, Map<String, Bone?> bones) {
     uuid = json['uuid'];
 
     for (int i = 0, l = json['bones'].length; i < l; i++) {
@@ -230,7 +256,9 @@ class Skeleton {
       }
 
       this.bones.add(bone);
-      boneInverses.add(Matrix4.identity()..copyFromArray(json['boneInverses'][i]));
+      boneInverses.add(
+        Matrix4.identity()..copyFromArray(json['boneInverses'][i]),
+      );
     }
 
     init();
@@ -243,10 +271,10 @@ class Skeleton {
       "metadata": {
         "version": 4.5,
         "type": 'Skeleton',
-        "generator": 'Skeleton.toJson'
+        "generator": 'Skeleton.toJson',
       },
       "bones": [],
-      "boneInverses": []
+      "boneInverses": [],
     };
 
     data["uuid"] = uuid;
@@ -266,10 +294,10 @@ class Skeleton {
   }
 
   Float32Array getValue(String name) {
-    if(name == "boneMatrices") {
+    if (name == "boneMatrices") {
       return boneMatrices!;
     } else {
-      throw("Skeleton getValue name: $name is not support  ");
+      throw ("Skeleton getValue name: $name is not support  ");
     }
   }
 }

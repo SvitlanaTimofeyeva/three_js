@@ -14,13 +14,17 @@ class WebGLState {
   late Map<int, int> equationToGL;
   late Map<int, int> factorToGL;
 
-  Map<String, dynamic> get buffers => {"color": colorBuffer, "depth": depthBuffer, "stencil": stencilBuffer};
+  Map<String, dynamic> get buffers => {
+    "color": colorBuffer,
+    "depth": depthBuffer,
+    "stencil": stencilBuffer,
+  };
   Map<int, bool> enabledCapabilities = <int, bool>{};
 
   Framebuffer? xrFramebuffer;
   Map currentBoundFramebuffers = {};
-	final uboBindings = WeakMap();
-	final uboProgramMap = WeakMap();
+  final uboBindings = WeakMap();
+  final uboProgramMap = WeakMap();
   WeakMap currentDrawbuffers = WeakMap();
   List defaultDrawbuffers = [];
 
@@ -36,8 +40,8 @@ class WebGLState {
   int? currentBlendSrcAlpha;
   int? currentBlendDstAlpha;
   bool? currentPremultipledAlpha;
-	Color currentBlendColor = Color( 0, 0, 0 );
-	double currentBlendAlpha = 0;
+  Color currentBlendColor = Color(0, 0, 0);
+  double currentBlendAlpha = 0;
 
   bool? currentFlipSided = false;
   int? currentCullFace;
@@ -61,7 +65,7 @@ class WebGLState {
 
   WebGLState(this.gl, this.extensions) {
     colorBuffer = ColorBuffer(gl);
-    depthBuffer = DepthBuffer(gl,extensions);
+    depthBuffer = DepthBuffer(gl, extensions);
     stencilBuffer = StencilBuffer(gl);
 
     colorBuffer.enable = enable;
@@ -74,8 +78,16 @@ class WebGLState {
     stencilBuffer.disable = disable;
 
     maxTextures = gl.getParameter(WebGL.MAX_COMBINED_TEXTURE_IMAGE_UNITS);
-    emptyTextures[WebGL.TEXTURE_2D] = createTexture(WebGL.TEXTURE_2D, WebGL.TEXTURE_2D, 1);
-    emptyTextures[WebGL.TEXTURE_CUBE_MAP] = createTexture(WebGL.TEXTURE_CUBE_MAP, WebGL.TEXTURE_CUBE_MAP_POSITIVE_X, 6);
+    emptyTextures[WebGL.TEXTURE_2D] = createTexture(
+      WebGL.TEXTURE_2D,
+      WebGL.TEXTURE_2D,
+      1,
+    );
+    emptyTextures[WebGL.TEXTURE_CUBE_MAP] = createTexture(
+      WebGL.TEXTURE_CUBE_MAP,
+      WebGL.TEXTURE_CUBE_MAP_POSITIVE_X,
+      6,
+    );
 
     colorBuffer.setClear(0, 0, 0, 1, false);
     depthBuffer.setClear(1);
@@ -93,7 +105,7 @@ class WebGLState {
     equationToGL = {
       AddEquation: WebGL.FUNC_ADD,
       SubtractEquation: WebGL.FUNC_SUBTRACT,
-      ReverseSubtractEquation: WebGL.FUNC_REVERSE_SUBTRACT
+      ReverseSubtractEquation: WebGL.FUNC_REVERSE_SUBTRACT,
     };
 
     equationToGL[MinEquation] = WebGL.MIN;
@@ -110,7 +122,7 @@ class WebGLState {
       OneMinusSrcColorFactor: WebGL.ONE_MINUS_SRC_COLOR,
       OneMinusSrcAlphaFactor: WebGL.ONE_MINUS_SRC_ALPHA,
       OneMinusDstColorFactor: WebGL.ONE_MINUS_DST_COLOR,
-      OneMinusDstAlphaFactor: WebGL.ONE_MINUS_DST_ALPHA
+      OneMinusDstAlphaFactor: WebGL.ONE_MINUS_DST_ALPHA,
     };
 
     scissorParam = gl.getParameter(WebGL.SCISSOR_BOX);
@@ -134,7 +146,17 @@ class WebGLState {
     gl.texParameteri(type, WebGL.TEXTURE_MAG_FILTER, WebGL.NEAREST);
 
     for (int i = 0; i < count; i++) {
-      gl.texImage2D(target + i, 0, WebGL.RGBA, 1, 1, 0, WebGL.RGBA, WebGL.UNSIGNED_BYTE, data);
+      gl.texImage2D(
+        target + i,
+        0,
+        WebGL.RGBA,
+        1,
+        1,
+        0,
+        WebGL.RGBA,
+        WebGL.UNSIGNED_BYTE,
+        data,
+      );
     }
 
     data.dispose();
@@ -181,7 +203,7 @@ class WebGLState {
       if (target == WebGL.FRAMEBUFFER) {
         currentBoundFramebuffers[WebGL.DRAW_FRAMEBUFFER] = framebuffer;
       }
-      
+
       return true;
     }
 
@@ -203,11 +225,13 @@ class WebGLState {
 
       final textures = renderTarget.textures;
 
-      if (drawBuffers.length != textures.length || (drawBuffers.isNotEmpty && drawBuffers[0] != WebGL.COLOR_ATTACHMENT0)) {
+      if (drawBuffers.length != textures.length ||
+          (drawBuffers.isNotEmpty &&
+              drawBuffers[0] != WebGL.COLOR_ATTACHMENT0)) {
         for (int i = 0, il = textures.length; i < il; i++) {
-          if(drawBuffers.length <= i){
+          if (drawBuffers.length <= i) {
             drawBuffers.add(WebGL.COLOR_ATTACHMENT0 + i);
-          }else{
+          } else {
             drawBuffers[i] = WebGL.COLOR_ATTACHMENT0 + i;
           }
         }
@@ -216,8 +240,7 @@ class WebGLState {
 
         needsUpdate = true;
       }
-    } 
-    else {
+    } else {
       if (drawBuffers.isEmpty || drawBuffers[0] != WebGL.BACK) {
         if (drawBuffers.isEmpty) {
           drawBuffers.add(WebGL.BACK);
@@ -247,14 +270,16 @@ class WebGLState {
     return false;
   }
 
-  void setBlending(int blending,
-      [int? blendEquation,
-      int? blendSrc,
-      int? blendDst,
-      int? blendEquationAlpha,
-      int? blendSrcAlpha,
-      int? blendDstAlpha,
-      bool premultipliedAlpha = false]) {
+  void setBlending(
+    int blending, [
+    int? blendEquation,
+    int? blendSrc,
+    int? blendDst,
+    int? blendEquationAlpha,
+    int? blendSrcAlpha,
+    int? blendDstAlpha,
+    bool premultipliedAlpha = false,
+  ]) {
     if (blending == NoBlending) {
       if (currentBlendingEnabled) {
         disable(WebGL.BLEND);
@@ -270,8 +295,10 @@ class WebGLState {
     }
 
     if (blending != CustomBlending) {
-      if (blending != currentBlending || premultipliedAlpha != currentPremultipledAlpha) {
-        if (currentBlendEquation != AddEquation || currentBlendEquationAlpha != AddEquation) {
+      if (blending != currentBlending ||
+          premultipliedAlpha != currentPremultipledAlpha) {
+        if (currentBlendEquation != AddEquation ||
+            currentBlendEquationAlpha != AddEquation) {
           gl.blendEquation(WebGL.FUNC_ADD);
 
           currentBlendEquation = AddEquation;
@@ -281,7 +308,12 @@ class WebGLState {
         if (premultipliedAlpha) {
           switch (blending) {
             case NormalBlending:
-              gl.blendFuncSeparate(WebGL.ONE, WebGL.ONE_MINUS_SRC_ALPHA, WebGL.ONE, WebGL.ONE_MINUS_SRC_ALPHA);
+              gl.blendFuncSeparate(
+                WebGL.ONE,
+                WebGL.ONE_MINUS_SRC_ALPHA,
+                WebGL.ONE,
+                WebGL.ONE_MINUS_SRC_ALPHA,
+              );
               break;
 
             case AdditiveBlending:
@@ -289,22 +321,36 @@ class WebGLState {
               break;
 
             case SubtractiveBlending:
-              gl.blendFuncSeparate(WebGL.ZERO, WebGL.ONE_MINUS_SRC_COLOR, WebGL.ZERO, WebGL.ONE);
+              gl.blendFuncSeparate(
+                WebGL.ZERO,
+                WebGL.ONE_MINUS_SRC_COLOR,
+                WebGL.ZERO,
+                WebGL.ONE,
+              );
               break;
 
             case MultiplyBlending:
-              gl.blendFuncSeparate(WebGL.ZERO, WebGL.SRC_COLOR, WebGL.ZERO, WebGL.SRC_ALPHA);
+              gl.blendFuncSeparate(
+                WebGL.ZERO,
+                WebGL.SRC_COLOR,
+                WebGL.ZERO,
+                WebGL.SRC_ALPHA,
+              );
               break;
 
             default:
               console.error('WebGLState: Invalid blending: $blending');
               break;
           }
-        } 
-        else {
+        } else {
           switch (blending) {
             case NormalBlending:
-              gl.blendFuncSeparate(WebGL.SRC_ALPHA, WebGL.ONE_MINUS_SRC_ALPHA, WebGL.ONE, WebGL.ONE_MINUS_SRC_ALPHA);
+              gl.blendFuncSeparate(
+                WebGL.SRC_ALPHA,
+                WebGL.ONE_MINUS_SRC_ALPHA,
+                WebGL.ONE,
+                WebGL.ONE_MINUS_SRC_ALPHA,
+              );
               break;
 
             case AdditiveBlending:
@@ -312,7 +358,12 @@ class WebGLState {
               break;
 
             case SubtractiveBlending:
-              gl.blendFuncSeparate(WebGL.ZERO, WebGL.ONE_MINUS_SRC_COLOR, WebGL.ZERO, WebGL.ONE);
+              gl.blendFuncSeparate(
+                WebGL.ZERO,
+                WebGL.ONE_MINUS_SRC_COLOR,
+                WebGL.ZERO,
+                WebGL.ONE,
+              );
               break;
 
             case MultiplyBlending:
@@ -329,8 +380,8 @@ class WebGLState {
         currentBlendDst = null;
         currentBlendSrcAlpha = null;
         currentBlendDstAlpha = null;
-				currentBlendColor.setValues( 0, 0, 0 );
-				currentBlendAlpha = 0;
+        currentBlendColor.setValues(0, 0, 0);
+        currentBlendAlpha = 0;
 
         currentBlending = blending;
         currentPremultipledAlpha = premultipliedAlpha;
@@ -343,8 +394,12 @@ class WebGLState {
     blendSrcAlpha = blendSrcAlpha ?? blendSrc;
     blendDstAlpha = blendDstAlpha ?? blendDst;
 
-    if (blendEquation != currentBlendEquation || blendEquationAlpha != currentBlendEquationAlpha) {
-      gl.blendEquationSeparate(equationToGL[blendEquation]!, equationToGL[blendEquationAlpha]!);
+    if (blendEquation != currentBlendEquation ||
+        blendEquationAlpha != currentBlendEquationAlpha) {
+      gl.blendEquationSeparate(
+        equationToGL[blendEquation]!,
+        equationToGL[blendEquationAlpha]!,
+      );
 
       currentBlendEquation = blendEquation;
       currentBlendEquationAlpha = blendEquationAlpha;
@@ -354,7 +409,12 @@ class WebGLState {
         blendDst != currentBlendDst ||
         blendSrcAlpha != currentBlendSrcAlpha ||
         blendDstAlpha != currentBlendDstAlpha) {
-      gl.blendFuncSeparate(factorToGL[blendSrc]!, factorToGL[blendDst]!, factorToGL[blendSrcAlpha]!, factorToGL[blendDstAlpha]!);
+      gl.blendFuncSeparate(
+        factorToGL[blendSrc]!,
+        factorToGL[blendDst]!,
+        factorToGL[blendSrcAlpha]!,
+        factorToGL[blendDstAlpha]!,
+      );
 
       currentBlendSrc = blendSrc;
       currentBlendDst = blendDst;
@@ -367,7 +427,9 @@ class WebGLState {
   }
 
   void setMaterial(Material material, bool frontFaceCW) {
-    material.side == DoubleSide ? disable(WebGL.CULL_FACE) : enable(WebGL.CULL_FACE);
+    material.side == DoubleSide
+        ? disable(WebGL.CULL_FACE)
+        : enable(WebGL.CULL_FACE);
 
     bool flipSided = (material.side == BackSide);
     if (frontFaceCW) flipSided = !flipSided;
@@ -376,7 +438,16 @@ class WebGLState {
 
     (material.blending == NormalBlending && material.transparent == false)
         ? setBlending(NoBlending)
-        : setBlending(material.blending, material.blendEquation, material.blendSrc, material.blendDst,material.blendEquationAlpha, material.blendSrcAlpha, material.blendDstAlpha, material.premultipliedAlpha);
+        : setBlending(
+            material.blending,
+            material.blendEquation,
+            material.blendSrc,
+            material.blendDst,
+            material.blendEquationAlpha,
+            material.blendSrcAlpha,
+            material.blendDstAlpha,
+            material.premultipliedAlpha,
+          );
 
     depthBuffer.setFunc(material.depthFunc);
     depthBuffer.setTest(material.depthTest);
@@ -387,13 +458,27 @@ class WebGLState {
     stencilBuffer.setTest(stencilWrite);
     if (stencilWrite) {
       stencilBuffer.setMask(material.stencilWriteMask);
-      stencilBuffer.setFunc(material.stencilFunc, material.stencilRef, material.stencilFuncMask);
-      stencilBuffer.setOp(material.stencilFail, material.stencilZFail, material.stencilZPass);
+      stencilBuffer.setFunc(
+        material.stencilFunc,
+        material.stencilRef,
+        material.stencilFuncMask,
+      );
+      stencilBuffer.setOp(
+        material.stencilFail,
+        material.stencilZFail,
+        material.stencilZPass,
+      );
     }
 
-    setPolygonOffset(material.polygonOffset, material.polygonOffsetFactor, material.polygonOffsetUnits);
+    setPolygonOffset(
+      material.polygonOffset,
+      material.polygonOffsetFactor,
+      material.polygonOffsetUnits,
+    );
 
-    material.alphaToCoverage == true ? enable(WebGL.SAMPLE_ALPHA_TO_COVERAGE) : disable(WebGL.SAMPLE_ALPHA_TO_COVERAGE);
+    material.alphaToCoverage == true
+        ? enable(WebGL.SAMPLE_ALPHA_TO_COVERAGE)
+        : disable(WebGL.SAMPLE_ALPHA_TO_COVERAGE);
   }
 
   //
@@ -402,8 +487,7 @@ class WebGLState {
     if (currentFlipSided != flipSided) {
       if (flipSided) {
         gl.frontFace(WebGL.CW);
-      } 
-      else {
+      } else {
         gl.frontFace(WebGL.CCW);
       }
 
@@ -443,7 +527,8 @@ class WebGLState {
     if (polygonOffset) {
       enable(WebGL.POLYGON_OFFSET_FILL);
 
-      if (currentPolygonOffsetFactor != factor || currentPolygonOffsetUnits != units) {
+      if (currentPolygonOffsetFactor != factor ||
+          currentPolygonOffsetUnits != units) {
         gl.polygonOffset(factor!, units!);
 
         currentPolygonOffsetFactor = factor;
@@ -474,15 +559,18 @@ class WebGLState {
     }
   }
 
-  void bindTexture(int webglType, WebGLTexture? webglTexture, [int? webglSlot]) {
-		if ( webglSlot == null ) {
-			if ( currentTextureSlot == null ) {
-				webglSlot = WebGL.TEXTURE0 + maxTextures - 1;
-			} 
-      else {
-				webglSlot = currentTextureSlot;
-			}
-		}
+  void bindTexture(
+    int webglType,
+    WebGLTexture? webglTexture, [
+    int? webglSlot,
+  ]) {
+    if (webglSlot == null) {
+      if (currentTextureSlot == null) {
+        webglSlot = WebGL.TEXTURE0 + maxTextures - 1;
+      } else {
+        webglSlot = currentTextureSlot;
+      }
+    }
 
     BoundTexture? boundTexture = currentBoundTextures[webglSlot];
 
@@ -491,32 +579,40 @@ class WebGLState {
       currentBoundTextures[webglSlot!] = boundTexture;
     }
 
-    if (boundTexture.type != webglType || boundTexture.texture != webglTexture) {
-			if ( currentTextureSlot != webglSlot ) {
-				gl.activeTexture( webglSlot! );
-				currentTextureSlot = webglSlot;
-			}
+    if (boundTexture.type != webglType ||
+        boundTexture.texture != webglTexture) {
+      if (currentTextureSlot != webglSlot) {
+        gl.activeTexture(webglSlot!);
+        currentTextureSlot = webglSlot;
+      }
 
-      gl.bindTexture(
-        webglType, 
-        webglTexture ?? emptyTextures[webglType]
-      );
+      gl.bindTexture(webglType, webglTexture ?? emptyTextures[webglType]);
 
       boundTexture.type = webglType;
       boundTexture.texture = webglTexture;
     }
   }
 
-  void unbindTexture([WebGLTexture? texture]) {
+  // void unbindTexture([WebGLTexture? texture]) {
+  //   final boundTexture = currentBoundTextures[currentTextureSlot];
+
+  //   if (boundTexture != null && boundTexture.type != null) {
+  //     gl.bindTexture(boundTexture.type!, kIsWeb ? null : texture);
+  //     boundTexture.type = null;
+  //     boundTexture.texture = null;
+  //   }
+  // }
+  void unbindTexture() {
     final boundTexture = currentBoundTextures[currentTextureSlot];
 
     if (boundTexture != null && boundTexture.type != null) {
-      gl.bindTexture(boundTexture.type!, kIsWeb?null:texture);
+      gl.bindTexture(boundTexture.type!, null);
       boundTexture.type = null;
       boundTexture.texture = null;
     }
   }
-	void compressedTexSubImage3D(
+
+  void compressedTexSubImage3D(
     int target,
     int level,
     int xoffset,
@@ -528,9 +624,21 @@ class WebGLState {
     int format,
     NativeArray? data,
   ) {
-		gl.compressedTexSubImage3D(target,level,xoffset,yoffset,zoffset,width,height,depth,format,data);
-	}
-	void compressedTexImage3D(
+    gl.compressedTexSubImage3D(
+      target,
+      level,
+      xoffset,
+      yoffset,
+      zoffset,
+      width,
+      height,
+      depth,
+      format,
+      data,
+    );
+  }
+
+  void compressedTexImage3D(
     int target,
     int level,
     int internalformat,
@@ -540,37 +648,138 @@ class WebGLState {
     int border,
     NativeArray? data,
   ) {
-		gl.compressedTexImage3D(target,level,internalformat,width,height,depth,border,data);
-	}
-
-  void compressedTexImage2D(int target, int level, int internalformat, int width, int height, int border, NativeArray? pixels) {
-    gl.compressedTexImage2D(target, level, internalformat, width, height, border, pixels);
+    gl.compressedTexImage3D(
+      target,
+      level,
+      internalformat,
+      width,
+      height,
+      depth,
+      border,
+      data,
+    );
   }
 
-  void texSubImage2D(int target, int level, int x, int y, num width, num height, int glFormat, int glType, NativeArray data) {
-    gl.texSubImage2D(target, level, x, y, width.toInt(), height.toInt(), glFormat, glType, data);
+  void compressedTexImage2D(
+    int target,
+    int level,
+    int internalformat,
+    int width,
+    int height,
+    int border,
+    NativeArray? pixels,
+  ) {
+    gl.compressedTexImage2D(
+      target,
+      level,
+      internalformat,
+      width,
+      height,
+      border,
+      pixels,
+    );
   }
 
-  void texSubImage2DIf(int target, int level, int x, int y, int glFormat, int glType, ImageElement image) {
+  void texSubImage2D(
+    int target,
+    int level,
+    int x,
+    int y,
+    num width,
+    num height,
+    int glFormat,
+    int glType,
+    NativeArray data,
+  ) {
+    gl.texSubImage2D(
+      target,
+      level,
+      x,
+      y,
+      width.toInt(),
+      height.toInt(),
+      glFormat,
+      glType,
+      data,
+    );
+  }
+
+  void texSubImage2DIf(
+    int target,
+    int level,
+    int x,
+    int y,
+    int glFormat,
+    int glType,
+    ImageElement image,
+  ) {
     if (kIsWeb && image.data is! NativeArray) {
-      texSubImage2DNoSize(WebGL.TEXTURE_2D, 0, 0, 0, glFormat, glType, image.data);
-    } 
-    else {
-      texSubImage2D(WebGL.TEXTURE_2D, 0, 0, 0, image.width, image.height, glFormat, glType, image.data);
+      texSubImage2DNoSize(
+        WebGL.TEXTURE_2D,
+        0,
+        0,
+        0,
+        glFormat,
+        glType,
+        image.data,
+      );
+    } else {
+      texSubImage2D(
+        WebGL.TEXTURE_2D,
+        0,
+        0,
+        0,
+        image.width,
+        image.height,
+        glFormat,
+        glType,
+        image.data,
+      );
     }
   }
 
-  void texSubImage2DNoSize(int target, int level, int x, int y, int glFormat, int glType, data) {
+  void texSubImage2DNoSize(
+    int target,
+    int level,
+    int x,
+    int y,
+    int glFormat,
+    int glType,
+    data,
+  ) {
     if (kIsWeb) {
       gl.texSubImage2D_NOSIZE(target, level, x, y, glFormat, glType, data);
-    } 
-    else {
+    } else {
       gl.texSubImage2D(target, level, 0, 0, x, y, glFormat, glType, data);
     }
   }
 
-  void texSubImage3D(int target, int level, int xoffset, int yoffset, int zoffset, int width, int height, int depth, int format, int type, NativeArray? pixels) {
-    gl.texSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
+  void texSubImage3D(
+    int target,
+    int level,
+    int xoffset,
+    int yoffset,
+    int zoffset,
+    int width,
+    int height,
+    int depth,
+    int format,
+    int type,
+    NativeArray? pixels,
+  ) {
+    gl.texSubImage3D(
+      target,
+      level,
+      xoffset,
+      yoffset,
+      zoffset,
+      width,
+      height,
+      depth,
+      format,
+      type,
+      pixels,
+    );
   }
 
   void compressedTexSubImage2D(
@@ -583,77 +792,179 @@ class WebGLState {
     int format,
     NativeArray? pixels,
   ) {
-    gl.compressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, pixels);
+    gl.compressedTexSubImage2D(
+      target,
+      level,
+      xoffset,
+      yoffset,
+      width,
+      height,
+      format,
+      pixels,
+    );
   }
 
-  void texStorage2D(int type, int levels, int glInternalFormat, int width, int height) {
+  void texStorage2D(
+    int type,
+    int levels,
+    int glInternalFormat,
+    int width,
+    int height,
+  ) {
     gl.texStorage2D(type, levels, glInternalFormat, width, height);
   }
 
   void texStorage3D(target, levels, internalformat, width, height, depth) {
-    gl.texStorage3D(target, levels, internalformat, width.toInt(), height.toInt(), depth);
+    gl.texStorage3D(
+      target,
+      levels,
+      internalformat,
+      width.toInt(),
+      height.toInt(),
+      depth,
+    );
   }
 
-  void texImage2DIf(int target, int level, int internalformat, int format, int type, image) {
+  void texImage2DIf(
+    int target,
+    int level,
+    int internalformat,
+    int format,
+    int type,
+    image,
+  ) {
     if (kIsWeb) {
       texImage2DNoSize(target, level, internalformat, format, type, image.data);
-    } 
-    else {
-      texImage2D(target, level, internalformat, image.width, image.height, 0, format, type, image.data);
+    } else {
+      texImage2D(
+        target,
+        level,
+        internalformat,
+        image.width,
+        image.height,
+        0,
+        format,
+        type,
+        image.data,
+      );
     }
   }
 
-  void texImage2D(int target, int level, int internalformat, int width, int height, border, int format, int type, data) {
-    gl.texImage2D(target, level, internalformat, width, height, border, format, type, data);
+  void texImage2D(
+    int target,
+    int level,
+    int internalformat,
+    int width,
+    int height,
+    border,
+    int format,
+    int type,
+    data,
+  ) {
+    gl.texImage2D(
+      target,
+      level,
+      internalformat,
+      width,
+      height,
+      border,
+      format,
+      type,
+      data,
+    );
   }
 
-  void texImage2DNoSize(int target, int level, int internalformat, int format, int type, data) {
+  void texImage2DNoSize(
+    int target,
+    int level,
+    int internalformat,
+    int format,
+    int type,
+    data,
+  ) {
     gl.texImage2D_NOSIZE(target, level, internalformat, format, type, data);
   }
 
-  void texImage3D(int target, int level, int internalformat, int width, int height, int depth, int border, int format,int type, offset) {
-    gl.texImage3D(target, level, internalformat, width, height, depth, border, format, type, offset);
+  void texImage3D(
+    int target,
+    int level,
+    int internalformat,
+    int width,
+    int height,
+    int depth,
+    int border,
+    int format,
+    int type,
+    offset,
+  ) {
+    gl.texImage3D(
+      target,
+      level,
+      internalformat,
+      width,
+      height,
+      depth,
+      border,
+      format,
+      type,
+      offset,
+    );
   }
 
   void scissor(Vector4 scissor) {
     if (!currentScissor.equals(scissor)) {
-      gl.scissor(scissor.x.toInt(), scissor.y.toInt(), scissor.z.toInt(), scissor.w.toInt());
+      gl.scissor(
+        scissor.x.toInt(),
+        scissor.y.toInt(),
+        scissor.z.toInt(),
+        scissor.w.toInt(),
+      );
       currentScissor.setFrom(scissor);
     }
   }
 
   void viewport(Vector4 viewport) {
     if (!currentViewport.equals(viewport)) {
-      gl.viewport(viewport.x.toInt(), viewport.y.toInt(), viewport.z.toInt(), viewport.w.toInt());
+      gl.viewport(
+        viewport.x.toInt(),
+        viewport.y.toInt(),
+        viewport.z.toInt(),
+        viewport.w.toInt(),
+      );
       currentViewport.setFrom(viewport);
     }
   }
-	void updateUBOMapping(UniformsGroup uniformsGroup, Program program ) {
-		dynamic mapping = uboProgramMap.get( program );
 
-		if ( mapping == null ) {
-			mapping = WeakMap();
-			uboProgramMap.set( program, mapping );
-		}
+  void updateUBOMapping(UniformsGroup uniformsGroup, Program program) {
+    dynamic mapping = uboProgramMap.get(program);
 
-		dynamic blockIndex = mapping.get( uniformsGroup );
+    if (mapping == null) {
+      mapping = WeakMap();
+      uboProgramMap.set(program, mapping);
+    }
 
-		if ( blockIndex == null ) {
-			blockIndex = gl.getUniformBlockIndex( program, uniformsGroup.name );
-			mapping.set( uniformsGroup, blockIndex );
-		}
-	}
+    dynamic blockIndex = mapping.get(uniformsGroup);
 
-	void uniformBlockBinding( uniformsGroup, program ) {
-		final mapping = uboProgramMap.get( program );
-		final blockIndex = mapping.get( uniformsGroup );
+    if (blockIndex == null) {
+      blockIndex = gl.getUniformBlockIndex(program, uniformsGroup.name);
+      mapping.set(uniformsGroup, blockIndex);
+    }
+  }
 
-		if ( uboBindings.get( program ) != blockIndex ) {
-			// bind shader specific block index to global block point
-			gl.uniformBlockBinding( program, blockIndex, uniformsGroup['__bindingPointIndex'] );
-			uboBindings.set( program, blockIndex );
-		}
-	}
+  void uniformBlockBinding(uniformsGroup, program) {
+    final mapping = uboProgramMap.get(program);
+    final blockIndex = mapping.get(uniformsGroup);
+
+    if (uboBindings.get(program) != blockIndex) {
+      // bind shader specific block index to global block point
+      gl.uniformBlockBinding(
+        program,
+        blockIndex,
+        uniformsGroup['__bindingPointIndex'],
+      );
+      uboBindings.set(program, blockIndex);
+    }
+  }
 
   void reset() {
     gl.disable(WebGL.BLEND);
@@ -685,7 +996,10 @@ class WebGLState {
     gl.polygonOffset(0, 0);
     gl.activeTexture(WebGL.TEXTURE0);
 
-    gl.bindFramebuffer(WebGL.DRAW_FRAMEBUFFER, null); // Equivalent to gl.FRAMEBUFFER
+    gl.bindFramebuffer(
+      WebGL.DRAW_FRAMEBUFFER,
+      null,
+    ); // Equivalent to gl.FRAMEBUFFER
     gl.bindFramebuffer(WebGL.READ_FRAMEBUFFER, null);
     gl.bindFramebuffer(WebGL.FRAMEBUFFER, null);
 
@@ -726,16 +1040,16 @@ class WebGLState {
     currentPolygonOffsetFactor = null;
     currentPolygonOffsetUnits = null;
 
-		currentScissor.setValues( 0, 0, gl.width.toDouble(), gl.height.toDouble());
-		currentViewport.setValues( 0, 0, gl.width.toDouble(), gl.height.toDouble());
+    currentScissor.setValues(0, 0, gl.width.toDouble(), gl.height.toDouble());
+    currentViewport.setValues(0, 0, gl.width.toDouble(), gl.height.toDouble());
 
     colorBuffer.reset();
     depthBuffer.reset();
     stencilBuffer.reset();
   }
 
-  void dispose(){
-    if(_didDispose) return;
+  void dispose() {
+    if (_didDispose) return;
     _didDispose = true;
 
     emptyTextures.clear();
@@ -815,19 +1129,19 @@ class DepthBuffer {
   double? currentDepthClear;
   WebGLExtensions extensions;
 
-  DepthBuffer(this.gl,this.extensions);
+  DepthBuffer(this.gl, this.extensions);
 
-  void setReversed(bool value ){
-    if ( reversed != value ) {
-      final ext = extensions.get( 'EXT_clip_control' );
-      if ( reversed ) {
-        ext.clipControlEXT( ext.LOWER_LEFT_EXT, ext.ZERO_TO_ONE_EXT );
+  void setReversed(bool value) {
+    if (reversed != value) {
+      final ext = extensions.get('EXT_clip_control');
+      if (reversed) {
+        ext.clipControlEXT(ext.LOWER_LEFT_EXT, ext.ZERO_TO_ONE_EXT);
       } else {
-        ext.clipControlEXT( ext.LOWER_LEFT_EXT, ext.NEGATIVE_ONE_TO_ONE_EXT );
+        ext.clipControlEXT(ext.LOWER_LEFT_EXT, ext.NEGATIVE_ONE_TO_ONE_EXT);
       }
       final oldDepth = currentDepthClear;
       currentDepthClear = null;
-      this.setClear( oldDepth! );
+      this.setClear(oldDepth!);
     }
 
     reversed = value;
@@ -956,7 +1270,9 @@ class StencilBuffer {
   }
 
   void setFunc(int stencilFunc, int stencilRef, int stencilMask) {
-    if (currentStencilFunc != stencilFunc || currentStencilRef != stencilRef || currentStencilFuncMask != stencilMask) {
+    if (currentStencilFunc != stencilFunc ||
+        currentStencilRef != stencilRef ||
+        currentStencilFuncMask != stencilMask) {
       gl.stencilFunc(stencilFunc, stencilRef, stencilMask);
 
       currentStencilFunc = stencilFunc;

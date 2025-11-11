@@ -10,7 +10,7 @@ import 'property_binding.dart';
 /// The AnimationMixer is a player for animations on a particular object in
 /// the scene. When multiple objects in the scene are animated independently,
 /// one AnimationMixer may be used for each object.
-/// 
+///
 /// For an overview of the different elements of the three.js animation system
 /// see the "Animation System" article in the "Next Steps" section of the
 /// manual.
@@ -23,19 +23,20 @@ class AnimationMixer with EventDispatcher {
 
   late List<AnimationAction> _actions;
   late int _nActiveActions;
-  late Map<String,dynamic> actionsByClip; // TODO: this is broken needs to be addressed
+  late Map<String, dynamic>
+  actionsByClip; // TODO: this is broken needs to be addressed
   late List<PropertyMixer> bindings;
   late int _nActiveBindings;
-  late Map<String,Map<String,PropertyMixer>> bindingsByRootAndName;
+  late Map<String, Map<String, PropertyMixer>> bindingsByRootAndName;
   late List _controlInterpolants;
   late int _nActiveControlInterpolants;
 
   final _controlInterpolantsResultBuffer = List<num>.filled(1, 0);
 
-  Map<String,dynamic>? stats;
+  Map<String, dynamic>? stats;
 
   /// [rootObject] - the object whose animations shall be played
-	/// by this mixer.
+  /// by this mixer.
   AnimationMixer(this.root) {
     _initMemoryManager();
   }
@@ -81,9 +82,10 @@ class AnimationMixer with EventDispatcher {
         final path = prototypeAction?.propertyBindings[i]?.binding.parsedPath;
 
         binding = PropertyMixer(
-            PropertyBinding.create(root, trackName, path) as PropertyBinding,
-            track.valueTypeName,
-            track.getValueSize());
+          PropertyBinding.create(root, trackName, path) as PropertyBinding,
+          track.valueTypeName,
+          track.getValueSize(),
+        );
 
         ++binding.referenceCount;
         _addInactiveBinding(binding, rootUuid, trackName);
@@ -98,29 +100,31 @@ class AnimationMixer with EventDispatcher {
   void activateAction(AnimationAction action) {
     if (!isActiveAction(action)) {
       if (action.cacheIndex == null) {
-        // this action has been forgotten by the cache, but the user
-        // appears to be still using it -> rebind
+        final rootUuid = (action.localRoot ?? root).uuid;
+        final clipUuid = action.clip.uuid;
 
-        final rootUuid = (action.localRoot ?? root).uuid,
-            clipUuid = action.clip.uuid,
-            actionsForClip = actionsByClip[clipUuid];
+        final Map<String, dynamic>? afc =
+            actionsByClip[clipUuid] as Map<String, dynamic>?;
+        AnimationAction? proto;
+        if (afc != null) {
+          final List<AnimationAction> known =
+              (afc['knownActions'] as List?)?.cast<AnimationAction>() ??
+              const [];
+          proto = known.isNotEmpty ? known[0] : null;
+        }
 
-        _bindAction(action, actionsForClip.knownActions[0] ?? actionsForClip);
+        _bindAction(action, proto);
         _addInactiveAction(action, clipUuid, rootUuid);
       }
 
       final bindings = action.propertyBindings;
-
-      // increment reference counts / sort out state
       for (int i = 0, n = bindings.length; i != n; ++i) {
         final binding = bindings[i]!;
-
         if (binding.useCount++ == 0) {
           _lendBinding(binding);
           binding.saveOriginalState();
         }
       }
-
       _lendAction(action);
     }
   }
@@ -159,32 +163,32 @@ class AnimationMixer with EventDispatcher {
     _controlInterpolants = []; // same game as above
     _nActiveControlInterpolants = 0;
 
-		stats = {
-			'actions': {
-				'total': () {
-					return _actions.length;
-				},
-				'inUse': () {
-					return _nActiveActions;
-				}
-			},
-			'bindings': {
-				'total': () {
-					return bindings.length;
-				},
-				'inUse': () {
-					return _nActiveBindings;
-				}
-			},
-			'controlInterpolants': {
-				'total': () {
-					return _controlInterpolants.length;
-				},
-				'inUse': () {
-					return _nActiveControlInterpolants;
-				}
-			}
-		};
+    stats = {
+      'actions': {
+        'total': () {
+          return _actions.length;
+        },
+        'inUse': () {
+          return _nActiveActions;
+        },
+      },
+      'bindings': {
+        'total': () {
+          return bindings.length;
+        },
+        'inUse': () {
+          return _nActiveBindings;
+        },
+      },
+      'controlInterpolants': {
+        'total': () {
+          return _controlInterpolants.length;
+        },
+        'inUse': () {
+          return _nActiveControlInterpolants;
+        },
+      },
+    };
   }
 
   // Memory management for AnimationAction objects
@@ -194,7 +198,11 @@ class AnimationMixer with EventDispatcher {
     return index != null && index < _nActiveActions;
   }
 
-  void _addInactiveAction(AnimationAction action, String clipUuid, String rootUuid) {
+  void _addInactiveAction(
+    AnimationAction action,
+    String clipUuid,
+    String rootUuid,
+  ) {
     final actions = _actions;
     final actionsByClip = this.actionsByClip;
 
@@ -203,16 +211,15 @@ class AnimationMixer with EventDispatcher {
     if (actionsForClip == null) {
       actionsForClip = {
         "knownActions": [action],
-        "actionByRoot": {}
+        "actionByRoot": {},
       };
 
       action.byClipCacheIndex = 0;
 
       actionsByClip[clipUuid] = actionsForClip;
-    } 
-    else {
+    } else {
       final knownActions = actionsForClip['knownActions'];
-      if(knownActions != null){
+      if (knownActions != null) {
         action.byClipCacheIndex = knownActions.length;
         knownActions.add(action);
       }
@@ -239,7 +246,8 @@ class AnimationMixer with EventDispatcher {
     final actionsByClip = this.actionsByClip;
     final Map actionsForClip = actionsByClip[clipUuid];
     final List knownActionsForClip = actionsForClip['knownActions'];
-    final AnimationAction lastKnownAction = knownActionsForClip[knownActionsForClip.length - 1];
+    final AnimationAction lastKnownAction =
+        knownActionsForClip[knownActionsForClip.length - 1];
     final byClipCacheIndex = action.byClipCacheIndex ?? 0;
 
     lastKnownAction.byClipCacheIndex = byClipCacheIndex;
@@ -280,7 +288,7 @@ class AnimationMixer with EventDispatcher {
     //                 a        s
 
     final actions = _actions,
-    prevIndex = action.cacheIndex!,
+        prevIndex = action.cacheIndex!,
         lastActiveIndex = _nActiveActions++,
         firstInactiveAction = actions[lastActiveIndex];
 
@@ -311,7 +319,11 @@ class AnimationMixer with EventDispatcher {
 
   // Memory management for PropertyMixer objects
 
-  void _addInactiveBinding(PropertyMixer binding, String rootUuid, String trackName) {
+  void _addInactiveBinding(
+    PropertyMixer binding,
+    String rootUuid,
+    String trackName,
+  ) {
     final bindingsByRoot = bindingsByRootAndName, bindings = this.bindings;
 
     Map<String, PropertyMixer>? bindingByName = bindingsByRoot[rootUuid];
@@ -380,15 +392,21 @@ class AnimationMixer with EventDispatcher {
     final interpolants = _controlInterpolants,
         lastActiveIndex = _nActiveControlInterpolants++;
 
-    Interpolant? interpolant = interpolants.length < lastActiveIndex?interpolants[lastActiveIndex]:null;
+    Interpolant? interpolant = interpolants.length < lastActiveIndex
+        ? interpolants[lastActiveIndex]
+        : null;
 
     if (interpolant == null) {
       console.info(" AnimationMixer LinearInterpolant init todo");
-      interpolant = LinearInterpolant(List<num>.filled(2, 0),
-          List<num>.filled(2, 0), 1, _controlInterpolantsResultBuffer);
+      interpolant = LinearInterpolant(
+        List<num>.filled(2, 0),
+        List<num>.filled(2, 0),
+        1,
+        _controlInterpolantsResultBuffer,
+      );
 
       interpolant.cachedIndex = lastActiveIndex;
-      interpolants.listSetter(lastActiveIndex,interpolant);
+      interpolants.listSetter(lastActiveIndex, interpolant);
     }
 
     return interpolant;
@@ -414,75 +432,74 @@ class AnimationMixer with EventDispatcher {
   /// root object different from the mixer's default root. The first parameter
   /// can be either an [AnimationClip] object or the name of an
   /// AnimationClip.
-  /// 
+  ///
   /// If an action fitting the clip and root parameters doesn't yet exist, it
   /// will be created by this method. Calling this method several times with the
   /// same clip and root parameters always returns the same clip instance.
-  AnimationAction? clipAction(AnimationClip? clip, [Object3D? optionalRoot, int? blendMode]) {
+  AnimationAction? clipAction(
+    AnimationClip? clip, [
+    Object3D? optionalRoot,
+    int? blendMode,
+  ]) {
     final root = optionalRoot ?? this.root;
     final rootUuid = root.uuid;
 
     AnimationClip? clipObject = clip;
 
     final clipUuid = clip?.uuid ?? root.uuid;
-    final actionsForClip = actionsByClip[clipUuid];
+    final Map<String, dynamic>? afc =
+        actionsByClip[clipUuid] as Map<String, dynamic>?; // typed
     AnimationAction? prototypeAction;
 
     if (blendMode == null) {
-      if (clipObject != null) {
-        blendMode = clipObject.blendMode;
-      } 
-      else {
-        blendMode = NormalAnimationBlendMode;
-      }
+      blendMode = clipObject != null
+          ? clipObject.blendMode
+          : NormalAnimationBlendMode;
     }
 
-    if (actionsForClip != null) {
-      final existingAction = actionsForClip?['actionByRoot'][rootUuid];
+    if (afc != null) {
+      final Map<String, AnimationAction> actionByRoot =
+          (afc['actionByRoot'] as Map?)?.cast<String, AnimationAction>() ??
+          const {};
+      final List<AnimationAction> knownActions =
+          (afc['knownActions'] as List?)?.cast<AnimationAction>() ?? const [];
 
-      if (existingAction != null && existingAction['blendMode'] == blendMode) {
-        return existingAction;
+      final AnimationAction? existingAction = actionByRoot[rootUuid];
+      if (existingAction != null && existingAction.blendMode == blendMode) {
+        return existingAction; // ✅ use property, not ['blendMode']
       }
 
-      // we know the clip, so we don't have to parse all
-      // the bindings again but can just copy
-      prototypeAction = actionsForClip['knownActions'][0];
-
-      // also, take the clip from the prototype action
+      prototypeAction = knownActions.isNotEmpty ? knownActions[0] : null;
       clipObject ??= prototypeAction?.clip;
     }
 
-    // clip must be known when specified via string
     if (clipObject == null) return null;
 
-    // allocate all resources required to run it
     final newAction = AnimationAction(
-      this, 
+      this,
       clipObject,
-      localRoot: optionalRoot, 
-      blendMode: blendMode
+      localRoot: optionalRoot,
+      blendMode: blendMode,
     );
 
     _bindAction(newAction, prototypeAction);
-
-    // and make the action known to the memory manager
     _addInactiveAction(newAction, clipUuid, rootUuid);
-
     return newAction;
   }
 
   // get an existing action
   /// Returns an existing [AnimationAction] for the passed clip, optionally
   /// using a root object different from the mixer's default root.
-  /// 
+  ///
   /// The first parameter can be either an [page:AnimationClip] object or the
   /// name of an AnimationClip.
   AnimationAction? existingAction(AnimationClip clip, optionalRoot) {
     final root = optionalRoot ?? this.root;
     final rootUuid = root.uuid;
 
-    final clipObject = clip;//clip.runtimeType.toString() == 'String'? AnimationClip.findByName(root, clip):clip,
-    final clipUuid = clipObject.uuid;//clipObject ? clipObject.uuid : clip;
+    final clipObject =
+        clip; //clip.runtimeType.toString() == 'String'? AnimationClip.findByName(root, clip):clip,
+    final clipUuid = clipObject.uuid; //clipObject ? clipObject.uuid : clip;
     final actionsForClip = actionsByClip[clipUuid];
 
     if (actionsForClip != null) {
@@ -504,7 +521,7 @@ class AnimationMixer with EventDispatcher {
   }
 
   /// Advance the time and update apply the animation
-  /// 
+  ///
   /// This is usually done in the render loop, passing [clock.getDelta] scaled by the mixer's [timeScale].
   AnimationMixer update(num deltaTime) {
     deltaTime *= timeScale;
@@ -539,11 +556,13 @@ class AnimationMixer with EventDispatcher {
   AnimationMixer setTime(timeInSeconds) {
     time = 0; // Zero out time attribute for AnimationMixer object;
     for (int i = 0; i < _actions.length; i++) {
-      _actions[i].time = 0; // Zero out time attribute for all associated AnimationAction objects.
-
+      _actions[i].time =
+          0; // Zero out time attribute for all associated AnimationAction objects.
     }
 
-    return update(timeInSeconds); // Update used to set exact time. Returns "this" AnimationMixer object.
+    return update(
+      timeInSeconds,
+    ); // Update used to set exact time. Returns "this" AnimationMixer object.
   }
 
   /// Returns this mixer's root object.
@@ -552,7 +571,7 @@ class AnimationMixer with EventDispatcher {
   }
 
   /// Deallocates all memory resources for a clip. Before using this method make
-	/// sure to call [AnimationAction.stop]() for all related actions.
+  /// sure to call [AnimationAction.stop]() for all related actions.
   void uncacheClip(AnimationClip clip) {
     final actions = _actions,
         clipUuid = clip.uuid,
@@ -571,7 +590,8 @@ class AnimationMixer with EventDispatcher {
 
         deactivateAction(action);
 
-        final cacheIndex = action.cacheIndex!, lastInactiveAction = actions[actions.length - 1];
+        final cacheIndex = action.cacheIndex!,
+            lastInactiveAction = actions[actions.length - 1];
 
         action.cacheIndex = null;
         action.byClipCacheIndex = null;
@@ -589,7 +609,7 @@ class AnimationMixer with EventDispatcher {
 
   /// Deallocates all memory resources for a root object. Before using this
   /// method make sure to call [AnimationAction.stop]() for all related
-  /// actions or alternatively [stopAllAction]() when the mixer operates 
+  /// actions or alternatively [stopAllAction]() when the mixer operates
   /// on a single root.
   void uncacheRoot(root) {
     final rootUuid = root.uuid;
@@ -612,7 +632,7 @@ class AnimationMixer with EventDispatcher {
     if (bindingByName != null) {
       for (String trackName in bindingByName.keys) {
         final binding = bindingByName[trackName];
-        if(binding != null){
+        if (binding != null) {
           binding.restoreOriginalState();
           _removeInactiveBinding(binding);
         }
@@ -621,7 +641,7 @@ class AnimationMixer with EventDispatcher {
   }
 
   ///	Deallocates all memory resources for an action. Before using this method
-	/// make sure to call [AnimationAction.stop]() to deactivate the action.
+  /// make sure to call [AnimationAction.stop]() to deactivate the action.
   void uncacheAction(AnimationClip clip, [optionalRoot]) {
     final action = existingAction(clip, optionalRoot);
 
