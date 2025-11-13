@@ -162,6 +162,7 @@ class ThreeJS with WidgetsBindingObserver {
 
   void _startTickerIfNeeded() {
     if (_disposed || !mounted) return;
+
     if (ticker == null) {
       ticker = Ticker(animate);
     }
@@ -262,7 +263,6 @@ class ThreeJS with WidgetsBindingObserver {
     });
   }
 
-  @override
   Future<void> animate(Duration duration) async {
     if (!mounted || _disposed || updating || !isVisibleOnScreen || !visible) {
       return;
@@ -296,8 +296,16 @@ class ThreeJS with WidgetsBindingObserver {
     _updating = false;
   }
 
+  bool get isIosSimulator {
+    return Platform.isIOS &&
+            !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')
+        ? false
+        : Platform.isIOS &&
+              Platform.environment['SIMULATOR_DEVICE_NAME'] != null;
+  }
+
   Future<void> render([double? dt]) async {
-    // if (sourceTexture == null) {
+    // if (sourceTexture == null && Platform.isAndroid) {
     //   angle?.activateTexture(texture!);
     // }
     rendererUpdate?.call();
@@ -309,7 +317,7 @@ class ThreeJS with WidgetsBindingObserver {
       postProcessor?.call(dt);
     }
 
-    // if (sourceTexture != null) {
+    // if (sourceTexture != null && Platform.isAndroid) {
     //   angle?.activateTexture(texture!);
     // }
     await angle?.updateTexture(texture!, sourceTexture);
@@ -433,8 +441,10 @@ class ThreeJS with WidgetsBindingObserver {
           alpha: settings.alpha,
           antialias: settings.antialias,
           // customRenderer: !settings.useSourceTexture,
-          customRenderer: Platform.isAndroid ? false : true,
-          useSurfaceProducer: Platform.isAndroid ? true : false,
+          customRenderer: Platform.isAndroid || isIosSimulator ? false : true,
+          useSurfaceProducer: Platform.isAndroid || isIosSimulator
+              ? true
+              : false,
         ),
       );
     }
