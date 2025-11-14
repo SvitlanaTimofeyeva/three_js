@@ -99,6 +99,10 @@ class ThreeJS with WidgetsBindingObserver {
   int _leakDebugFrame = 0;
   int renderNumber;
 
+  final ValueNotifier<bool> _ready = ValueNotifier<bool>(false);
+
+  bool _eglRecovering = false;
+
   BuildContext? _context;
   Timer? _debounceTimer;
 
@@ -150,6 +154,11 @@ class ThreeJS with WidgetsBindingObserver {
   List<Function(double dt)> events = [];
   List<Function()> disposeEvents = [];
 
+  void setUpdating(bool v) {
+    print("ANIMATING !!!!!!! SET TO ${v}");
+    _updating = v;
+  }
+
   FlutterAngle? angle = FlutterAngle();
 
   void addAnimationEvent(Function(double dt) event) {
@@ -177,13 +186,54 @@ class ThreeJS with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _recoverFromEglNotInitialized() async {
+    if (_eglRecovering || _disposed) return;
+    _eglRecovering = true;
+    debugPrint('[ThreeJS] EGL_NOT_INITIALIZED – recreating ANGLE + renderer');
+
+    try {
+      // Optional: nudge UI to show loader
+      _ready.value = !_ready.value;
+
+      // 1) Fully reset ANGLE (native + Dart)
+      try {
+        await angle?.resetAngle();
+      } catch (e, st) {
+        debugPrint('[ThreeJS] resetAngle failed: $e\n$st');
+      }
+
+      // 2) Drop GPU-related state
+      texture = null;
+      gl = null;
+      renderer = null;
+      renderTarget = null;
+      sourceTexture = null;
+
+      // 3) Re-init platform + scene
+      await initPlatformState();
+    } catch (e, st) {
+      debugPrint('[ThreeJS] _recoverFromEglNotInitialized failed: $e\n$st');
+      // If this still blows up, we at least avoid crashing animate()
+    } finally {
+      _eglRecovering = false;
+    }
+  }
+
+  void _ensureTickerStarted() {
+    if (_disposed) return;
+    if (ticker == null) {
+      ticker = Ticker(animate, debugLabel: 'ThreeJS#$renderNumber');
+    }
+    if (!ticker!.isActive) ticker!.start();
+  }
+
   void setAnimating(bool enabled) {
     settings.animate = enabled;
-
-    if (_disposed || !mounted) return;
+    if (_disposed) return;
 
     if (enabled) {
-      _startTickerIfNeeded();
+      if (!mounted) return; // will arm in initScene post-frame
+      _ensureTickerStarted();
     } else {
       _stopTickerIfAny();
     }
@@ -209,7 +259,10 @@ class ThreeJS with WidgetsBindingObserver {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _debounceTimer?.cancel(); // Cancel timer if active
+
+    _ready.value = false; // optional, but safe – no dispose()
+
+    _debounceTimer?.cancel();
     _debounceTimer = null;
     WidgetsBinding.instance.removeObserver(this);
     ticker?.dispose();
@@ -264,36 +317,64 @@ class ThreeJS with WidgetsBindingObserver {
   }
 
   Future<void> animate(Duration duration) async {
-    if (!mounted || _disposed || updating || !isVisibleOnScreen || !visible) {
-      return;
-    }
-    _updating = true;
-    final dt = clock.getDelta();
+    try {
+      if (!mounted ||
+          _disposed ||
+          _updating ||
+          !isVisibleOnScreen ||
+          !visible) {
+        return;
+      }
 
-    if (settings.animate) {
-      await render(dt);
-      if (!pause) {
-        for (int i = 0; i < events.length; i++) {
-          events[i].call(dt);
+      if (_eglRecovering) return;
+      _updating = true;
+      final dt = clock.getDelta();
+
+      if (settings.animate) {
+        await render(dt);
+        if (!pause) {
+          for (int i = 0; i < events.length; i++) {
+            events[i].call(dt);
+          }
         }
       }
-    }
 
-    // 🔍 Every ~300 frames, log GL object counts.
-    if (renderer != null && (++_leakDebugFrame % 300 == 0)) {
-      final info = renderer!.info;
-      debugPrint(
-        '[ThreeJS][leak-check] '
-        'geometries=${info.memory['geometries']} '
-        'textures=${info.memory['textures']} '
-        'programs=${info.programs.length} '
-        'frame=${info.render['frame']}',
-      );
-      // UBO / uniforms groups stats
-      renderer!.debugPrintUniformsGroupsStats();
-    }
+      // 🔍 Every ~300 frames, log GL object counts.
+      if (renderer != null && (++_leakDebugFrame % 300 == 0)) {
+        final info = renderer!.info;
+        debugPrint(
+          '[ThreeJS][leak-check] '
+          'geometries=${info.memory['geometries']} '
+          'textures=${info.memory['textures']} '
+          'programs=${info.programs.length} '
+          'frame=${info.render['frame']}',
+        );
+        // UBO / uniforms groups stats
+        renderer!.debugPrintUniformsGroupsStats();
+      }
 
-    _updating = false;
+      _updating = false;
+    } catch (err, stack) {
+      debugPrint('ThreeJS.animate error: $err');
+
+      final msg = err.toString();
+      print("Rsssss ${err}");
+      // This is the Android “second time I open screen” special
+      if (msg.contains('EglError.notInitialized') ||
+          msg.contains('EGL_NOT_INITIALIZED') ||
+          msg.contains('eglNotInitialized')) {
+        _updating = false;
+        print("REINIT!!!!!!!!");
+        // 🔁 Recreate ANGLE + renderer, keep scene/model cache
+        await _recoverFromEglNotInitialized();
+
+        return; // don't rethrow
+      }
+
+      debugPrint('$stack');
+    } finally {
+      _updating = false;
+    }
   }
 
   bool get isIosSimulator {
@@ -305,6 +386,11 @@ class ThreeJS with WidgetsBindingObserver {
   }
 
   Future<void> render([double? dt]) async {
+    if (renderer == null || gl == null) {
+      //debugPrint('[ThreeJS] render() skipped – renderer/gl is null');
+      return;
+    }
+
     // if (sourceTexture == null && Platform.isAndroid) {
     //   angle?.activateTexture(texture!);
     // }
@@ -425,11 +511,17 @@ class ThreeJS with WidgetsBindingObserver {
       angle?.activateTexture(texture!);
     }
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (settings.animate) _ensureTickerStarted();
+    });
+
     setAnimating(settings.animate);
     onSetupComplete();
   }
 
   Future<void> initPlatformState() async {
+    _ready.value = false; // 🔥 remove this
+
     if (texture == null) {
       await angle?.init();
 
@@ -440,7 +532,6 @@ class ThreeJS with WidgetsBindingObserver {
           dpr: _resolution!,
           alpha: settings.alpha,
           antialias: settings.antialias,
-          // customRenderer: !settings.useSourceTexture,
           customRenderer: Platform.isAndroid || isIosSimulator ? false : true,
           useSurfaceProducer: Platform.isAndroid || isIosSimulator
               ? true
@@ -450,10 +541,17 @@ class ThreeJS with WidgetsBindingObserver {
     }
 
     console.info(texture?.toMap());
-    if (gl == null) {
+    if (gl == null && texture != null) {
       gl = texture!.getContext();
     }
+
     await initScene();
+
+    // ❌ old:
+    // _ready.value = texture != null && mounted;
+
+    // ✅ new: just toggle to trigger a rebuild
+    _ready.value = !_ready.value;
   }
 
   Widget build() {
@@ -467,23 +565,27 @@ class ThreeJS with WidgetsBindingObserver {
               width: !visible ? 0 : width,
               height: !visible ? 0 : height,
               child: SizeChangedLayoutNotifier(
-                child: Builder(
-                  builder: (BuildContext context) {
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _ready,
+                  builder: (context, ready, _) {
+                    // ignore `ready` as a boolean meaning
+                    final showTexture = texture != null && mounted;
+
                     if (kIsWeb) {
-                      return texture != null && mounted
+                      return showTexture
                           ? HtmlElementView(
                               viewType: texture!.textureId.toString(),
                             )
-                          : loadingWidget ??
+                          : (loadingWidget ??
                                 Container(
                                   width: MediaQuery.of(context).size.width,
                                   height: MediaQuery.of(context).size.height,
                                   color: Theme.of(context).canvasColor,
                                   alignment: Alignment.center,
                                   child: const CircularProgressIndicator(),
-                                );
+                                ));
                     } else {
-                      return texture != null && mounted
+                      return showTexture
                           ? Transform.scale(
                               scaleY:
                                   sourceTexture != null || Platform.isAndroid
@@ -491,14 +593,14 @@ class ThreeJS with WidgetsBindingObserver {
                                   : -1,
                               child: Texture(textureId: texture!.textureId),
                             )
-                          : loadingWidget ??
+                          : (loadingWidget ??
                                 Container(
                                   width: MediaQuery.of(context).size.width,
                                   height: MediaQuery.of(context).size.height,
                                   color: Theme.of(context).canvasColor,
                                   alignment: Alignment.center,
                                   child: const CircularProgressIndicator(),
-                                );
+                                ));
                     }
                   },
                 ),
