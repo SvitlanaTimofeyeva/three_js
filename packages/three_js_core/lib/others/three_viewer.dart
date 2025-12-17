@@ -464,38 +464,82 @@ class ThreeJS with WidgetsBindingObserver {
     }
   }
 
+  // inside ThreeJS
+
+  bool _resizeRunning = false;
+  Size? _queuedResize;
+
   Future<void> _onWindowResize(BuildContext context) async {
-    if (_disposed) return;
-    if (Platform.isAndroid) return;
-    double dt = clock.getDelta();
-    final mqd = MediaQuery.maybeOf(context);
-    if (mqd == null) return;
-    if (_fixedSize == null && screenSize != mqd.size && texture != null) {
-      screenSize = mqd.size;
+    if (_disposed || Platform.isAndroid) return;
+    if (_fixedSize != null || texture == null) return;
 
-      if (settings.screenResolution == null) {
-        _resolution = mqd.devicePixelRatio;
-      }
+    // Prefer the engine view size (often updates earlier/more reliably than MediaQuery)
+    final view = WidgetsBinding.instance.platformDispatcher.views.first;
+    final dprNow = view.devicePixelRatio;
+    var logical = view.physicalSize / dprNow;
+    var newSize = Size(logical.width, logical.height);
 
-      final options = AngleOptions(
-        width: width.toInt(),
-        height: height.toInt(),
-        dpr: _resolution!,
-      );
+    // ✅ Always treat resize as landscape backing buffer
+    if (newSize.height > newSize.width) {
+      newSize = Size(newSize.height, newSize.width);
+    }
 
-      await angle?.resize(texture!, options);
-      angle?.activateTexture(texture!);
+    // Serialize: if resize is already running, just remember the last requested size.
+    if (_resizeRunning) {
+      _queuedResize = newSize;
+      return;
+    }
 
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
+    if (screenSize == newSize) return;
 
-      windowResizeUpdate?.call(screenSize!);
-      renderer!.setSize(width, height, false);
+    _resizeRunning = true;
+    try {
+      // Apply latest queued size (loop in case more arrive mid-resize)
+      var target = newSize;
+      while (true) {
+        screenSize = target;
 
-      if (postProcessor != null) {
+        // DPR update
+        if (settings.screenResolution == null) {
+          _resolution = dprNow;
+        }
+
+        final r = renderer;
+        if (r == null) return;
+
+        // Ensure renderer uses current DPR too
+        r.setPixelRatio(_resolution!);
+
+        final options = AngleOptions(
+          width: width.toInt(),
+          height: height.toInt(),
+          dpr: _resolution!,
+        );
+
+        await angle?.resize(texture!, options);
+        angle?.activateTexture(texture!);
+
+        // ✅ Keep “always wide” camera assumption consistent
+        var aspect = (height == 0) ? 1.0 : (width / height);
+        if (aspect < 1.0) aspect = 1.0 / aspect;
+        camera.aspect = aspect;
+        camera.updateProjectionMatrix();
+
+        windowResizeUpdate?.call(screenSize!);
+        r.setSize(width, height, false);
+
+        final dt = clock.getDelta();
         postProcessor?.call(dt);
+        render(dt);
+
+        // If another resize got queued while we were working, apply it now.
+        final q = _queuedResize;
+        if (q == null || q == target) break;
+        _queuedResize = null;
+        target = q;
       }
-      render(dt);
+    } finally {
+      _resizeRunning = false;
     }
   }
 
